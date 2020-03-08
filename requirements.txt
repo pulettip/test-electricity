@@ -1,0 +1,6 @@
+Django
+django-cors-middleware
+djangorestframework
+django-filter
+gunicorn
+django-heroku
