@@ -2,7 +2,7 @@ from django.db import models
 from django.utils.translation import gettext as _
 
 class Building(models.Model):
-	building_id=models.IntegerField()
+	building_id=models.IntegerField(unique=True)
 	name=models.CharField(max_length=100)
 
 class FuelType(models.IntegerChoices):
@@ -21,7 +21,13 @@ class Meters(models.Model):
 	meter_id=models.IntegerField()
 	fuel = models.CharField(max_length=1, choices=FuelType.choices)
 
+	class Meta:
+		unique_together = ('building', 'meter_id')
+
 class MetersReadings(models.Model):
 	meter=models.ForeignKey(Meters, on_delete=models.CASCADE)
 	consumption=models.DecimalField(max_digits=12, decimal_places=4)
 	reading_date_time=models.TimeField()
+
+	class Meta:
+		unique_together = ('meter', 'reading_date_time')

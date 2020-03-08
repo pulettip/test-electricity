@@ -3,4 +3,6 @@ django-cors-middleware
 djangorestframework
 django-filter
 gunicorn
+python-dateutil
 django-heroku
+ipython==7.0.1
