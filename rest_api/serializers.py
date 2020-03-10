@@ -34,10 +34,6 @@ class DetailMetersSerializer(MetersSerializer):
 		return result
 
 class MetersReadingsSerializer(serializers.ModelSerializer):
-	# meter_id = serializers.IntegerField(read_only=True, source="meter.meter_id")
-	# building_id = serializers.IntegerField(read_only=True, source="meter.building.building_id")
-	# fuel = serializers.CharField(read_only=True, source="meter.fuel")
-
 	class Meta:
 		model = MetersReadings
 		fields = ("consumption", "reading_date_time")

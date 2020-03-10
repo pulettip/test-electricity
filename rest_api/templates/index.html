@@ -271,7 +271,6 @@
 						this.result = this.buildings.length + " buildings founded. Click on a row to see the building details";
 					},
 					selectBuilding: function(name) {
-						console.log("selectBuilding")
 						this.searchString = name;
 						this.updateList = true;
 					},
@@ -281,8 +280,6 @@
 						$('#details').modal('toggle');
 						this.timeout = setTimeout(() => {
 							this.detailBuilding = building;
-							console.log(building)
-							// this.detailBuilding.meters = this.detailBuilding.meters.map(elem => elem.label = elem.fuel + " - ID:" + elem.meter_id);
 							this.detailBuilding.options = this.detailBuilding.meters.map(elem => {
 								var option = {
 									label: elem.fuel + " - ID:" + elem.meter_id,
@@ -308,16 +305,10 @@
 						else this.dropdown = false;
 					},
 					selectedMeter: function(newValue, oldValue) {
-						console.log(newValue.code)
 						this.$http.get('/api/meters/', {params: {meter_id: newValue.code.meter_id}})
 							.then((response) => {
-								console.log(response.data);
-
 								var consumption = response.data[0].readings.map(elem => elem.consumption);
 								var labels = response.data[0].readings.map(elem => elem.reading_date_time.replace('T','-').replace(':00Z',''));
-
-								console.log(consumption)
-								console.log(labels)
 
 								consumption = consumption.slice(0, 100)
 								labels = labels.slice(0, 100)
@@ -356,15 +347,6 @@
 										maintainAspectRatio: false
 									}
 								});
-
-								console.log(char)
-
-								// chart.canvas.parentNode.style.height = '60vh';
-								chart.canvas.parentNode.style.width = '400px';
-
-								this.timeout = setTimeout(() => {
-									
-								}, 100);
 							})
 							.catch((err) => {
 								this.loading = false;

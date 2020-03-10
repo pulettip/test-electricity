@@ -14,7 +14,6 @@ from .serializers import BuildingSerializer, MetersSerializer, DetailMetersSeria
 class BuildingViewSet(viewsets.ModelViewSet):
 	model = Building
 	serializer_class = BuildingSerializer
-	# queryset = Building.objects.all().order_by('building_id')
 	queryset = Building.objects.all()
 
 	def get_queryset(self):
