@@ -1,7 +1,6 @@
 from django.shortcuts import render
 import csv
 import json
-import logging
 
 from dateutil.parser import parse
 from rest_framework import viewsets
@@ -10,11 +9,12 @@ from django.db.models import Q
 from itertools import islice
 
 from .models import Building, Meters, MetersReadings
-from .serializers import BuildingSerializer, MetersSerializer, MetersReadingsSerializer
+from .serializers import BuildingSerializer, MetersSerializer, DetailMetersSerializer, MetersReadingsSerializer
 
 class BuildingViewSet(viewsets.ModelViewSet):
 	model = Building
 	serializer_class = BuildingSerializer
+	# queryset = Building.objects.all().order_by('building_id')
 	queryset = Building.objects.all()
 
 	def get_queryset(self):
@@ -62,18 +62,22 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
 class MetersViewSet(viewsets.ModelViewSet):
 	model = Meters
-	serializer_class = MetersSerializer
 	queryset = Meters.objects.all()
+
+	def get_serializer_class(self):
+		if self.request.GET.get('meter_id'):
+			return DetailMetersSerializer
+
+		return MetersSerializer
 
 	def get_queryset(self):
 		qs = super().get_queryset()
-		query = self.request.GET.get('q')
+		meter_id = self.request.GET.get('meter_id')
 
-		if query is None:
+		if meter_id is None:
 			return qs
 
-		filtered_qs=qs.filter(name__icontains=query)
-		return filtered_qs
+		return Meters.objects.filter(meter_id=meter_id)
 
 	def create(self, request):
 		file = request.FILES["file"]
@@ -88,7 +92,6 @@ class MetersViewSet(viewsets.ModelViewSet):
 			fields = line.split(",")
 			
 			if len(fields) >= 4:
-				logging.warning(fields)
 				if i == 0 and (fields[0] != 'building_id' or fields[1] != 'id' or fields[2] != 'fuel' or 'unit' not in fields[3]):
 					raise Exception("Header format Invalid")
 				else:
@@ -123,13 +126,12 @@ class MetersReadingsViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 		qs = super().get_queryset()
-		query = self.request.GET.get('q')
+		meter = self.request.GET.get('meter_id')
 
-		if query is None:
+		if meter is None:
 			return qs
 
-		filtered_qs=qs.filter(name__icontains=query)
-		return filtered_qs
+		return qs.filter(meter__meter_id=meter)		
 
 	def create(self, request):
 		file = request.FILES["file"]
@@ -153,44 +155,29 @@ class MetersReadingsViewSet(viewsets.ModelViewSet):
 					consumption = False
 					reading_date_time = False
 					try:
-						meter_id = int(fields[1])
 						consumption = float(fields[0])
+						meter_id = int(fields[1])
 						reading_date_time = parse(fields[2])
 					except:
 						format_error += 1
 
-					if meter_id and consumption and reading_date_time:
-						# try:
+					if (consumption or consumption == 0) and meter_id and reading_date_time:
+						try:
 							if meter_id not in meters:
 								meters[meter_id] = Meters.objects.get(meter_id=meter_id)
-							# if created:
-							# 	new += 1
-							# 	objects.append(MetersReadings(meter=meters[meter_id], consumption=consumption, reading_date_time=reading_date_time))
-							# else:
-							# 	existing += 1
-
 							new += 1
 							objects.append(MetersReadings(meter=meters[meter_id], consumption=consumption, reading_date_time=reading_date_time))
-						# except:
-						# 	wrong_meter += 1
+						except:
+							wrong_meter += 1
 				i += 1
-
-				if i % 1000 == 0:
-					logging.warning({'new': new, 'wrong_meter': wrong_meter, 'format_error': format_error})
 			else:
 				format_error += 1
 
 		batch_size = 100
-		total = len(objects)
-		i = 0
-		sliceObj = slice(0, 99, 100)
-		while True:
-			batch = list(islice(objects, batch_size))
-			logging.warning('%s objects proccessed from %s total', i * batch_size, total)
-			logging.warning(batch[0].__dict__)
-			if i * batch_size > total:
-				break
-			# MetersReadings.objects.bulk_create(batch, batch_size)
-			i += 1
+		total_previous = MetersReadings.objects.count()
+		result = MetersReadings.objects.bulk_create(objects, batch_size, ignore_conflicts=True)
+		# These two counters variables are not very reliable since bulk_insert can occur at the same time
+		added = MetersReadings.objects.count() - total_previous
+		existing = new - added 
 
-		return Response({'success': True, 'new': new, 'existing': existing, 'wrong_meter': wrong_meter, 'format_error': format_error})
+		return Response({'success': True, 'existing': existing, 'added': added, 'wrong_meter': wrong_meter, 'format_error': format_error})

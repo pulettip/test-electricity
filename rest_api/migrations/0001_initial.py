@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('consumption', models.DecimalField(decimal_places=4, max_digits=12)),
-                ('reading_date_time', models.TimeField()),
+                ('reading_date_time', models.DateTimeField()),
                 ('meter', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='rest_api.Meters')),
             ],
         ),

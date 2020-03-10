@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Buildings</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="A simple app for querying buildings">
+		<meta name="keywords" content="buildings">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+
+		<style type="text/css">
+			.building-row:nth-child(even) {
+				background: #CCC
+			}
+			.building-row:nth-child(odd) {
+				background: #FFF
+			}
+
+			.building-row {
+				cursor: pointer;
+			}
+
+			h1 {
+				text-align: center;
+			}
+
+			.loading {
+				width: 100%;
+				height: 100%;
+				position: fixed;
+				top: 0;
+				left: 0;
+				z-index: 100;
+				text-align: center;
+				background-color: rgba(0, 0, 0, 0.6);
+				color: #FFF;
+			}
+
+			.loading-text {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+
+			#starting {
+				max-width: 900px;
+				margin: 0 auto;
+			}
+
+			.searchRow {
+				width: auto;
+				margin: 15px auto;
+			}
+
+			.results {
+				margin: 15px 0;
+			}
+
+			@media only screen and (min-width: 500px) {
+				.searchBox, .dropdown, .searchBox input {
+					min-width: 300px;
+				}
+
+				.searchRow .btn-info {
+					margin-right: 2em;
+				}
+			}
+
+			.searchBox {
+				position: relative;
+				margin: 0 1em;
+			}
+
+			@media only screen and (max-width: 499px) {
+				.searchBox input {
+					max-width: 140px;
+				}
+			}
+
+			.searchBox input {
+				height: 24px;
+			}
+
+			.dropdown {
+				z-index: 10;
+				background-color: #FFF;
+				border: solid 1px grey;
+				position: absolute;
+				top: 24px;
+				box-shadow: 1px 1px 6px #888888;
+			}
+
+			.name {
+				margin-left: 5px;
+				font-weight: bold;
+			}
+
+			.building_id {
+				margin-left: 1.5em;
+				color: grey;
+				font-style: italic;
+			}
+
+			.content:hover {
+				background-color: #cddfe9;
+				cursor: pointer;
+			}
+
+			.btn-detail {
+				margin: 10px 0;
+			}
+
+			.building-title {
+				font-weight: bold;
+				margin-bottom: 2em;
+			}
+
+			#details .modal-dialog {
+				max-width: 600px;
+			}
+
+			#details .v-select {
+				max-width: 300px;
+			}
+
+			.table .col {
+				margin: 5px 0;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="starting">
+			<div class="container">
+				<div class="column">
+					<h1>List of Buildings</h1>
+					<div class="searchRow row align-items-center">
+						<div class="searchLabel">Search:</div>
+						<div class="searchBox">
+							<input type="text" v-model="searchString" v-on:blur="closeDropdown" v-on:keyup="keyCheck">
+							<div class="dropdown" v-if="dropdown===true">
+								<div class="content" v-on:click="selectBuilding(building.name)" v-for="building in buildings.slice(0, 5)">
+									<div class="name">${building.name}</div>
+									<div class="building_id">id: ${building.building_id}</div>
+								</div>
+								<div class="content" v-if="buildings.length===0">
+									<div class="building_id">No buildings matching that criteria</div>
+								</div>
+							</div>
+						</div>
+						<button class="btn btn-info" v-on:click="search">Search</button>
+					</div>
+
+					<div class="results">${result}</div>
+
+					<div class="table">
+						<div class="row align-items-center justify-content-center">
+							<div class="col-3 col-sm-1">Id</div>
+							<div class="col">Name</div>
+							<div class="col">Meters</div>
+						</div>
+						<div v-on:click="seeDetails(building)" class="row building-row align-items-center justify-content-center" v-for="building in listBuildings">
+							<div class="col-3 col-sm-1">${building.building_id}</div>
+							<div class="col">${building.name}</div>
+							<div class="col">${building.meters.length} Meters</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="loading column" v-if="loading===true">
+				<div class="loading-text">Loading&#8230;</div>
+			</div>
+
+			<!-- Modal -->
+			<div class="modal fade" id="details" tabindex="-1" role="dialog" aria-labelledby="detailsModal" aria-hidden="true">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content" v-if="detailBuilding">
+						<div class="modal-header">
+							<h5 class="modal-title" id="exampleModalLabel">Details of the Building</h5>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="container modal-body">
+							<div class="row">
+								<div class="col">
+									<div class="building-title">
+										${detailBuilding.name} (ID: ${detailBuilding.building_id})
+									</div>
+								</div>
+							</div>
+							<div class="row align-items-center justify-content-start">
+								<div class="col-2 col-sm-auto">
+									Select Meter
+								</div>
+								<div class="col">
+									<v-select v-model="selectedMeter" :options="detailBuilding.options"></v-select>
+								</div>
+								
+							</div>
+						</div>
+						<div class="modal-footer">
+							
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+		<script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
+		<script src="https://unpkg.com/vue-select@latest"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+		<script>
+			Vue.component('v-select', VueSelect.VueSelect);
+			
+			new Vue({
+				el: '#starting',
+				delimiters: ['${','}'],
+				data() {
+					return {
+						buildings: [],
+						listBuildings: [],
+						detailBuilding: null,
+						selectedMeter: null,
+						loading: false,
+						searchString: '',
+						timeout: null,
+						dropdown: false,
+						result: ''
+					}
+				},
+				mounted: function() {
+					this.getBuildings();
+				},
+				methods: {
+					getBuildings: function(query=false) {
+						this.$http.get('/api/buildings/', {params: {q: query ? query : undefined}})
+							.then((response) => {
+								this.buildings = response.data;
+								if (this.updateList) {
+									this.listBuildings = this.buildings;
+									this.updateList = false;
+									this.dropdown = false;
+									this.getResult();
+								}
+							})
+							.catch((err) => {
+								this.loading = false;
+							})
+					},
+					keyCheck: function(event) {
+						if (event.key == "Enter") this.search();
+					},
+					search: function(event) {
+						this.listBuildings = this.buildings;
+						this.dropdown = false;
+						if (this.searchString.length < 1) {
+							this.updateList = true;
+							this.getBuildings(this.searchString);
+						} else this.getResult();
+					},
+					getResult: function() {
+						this.result = this.buildings.length + " buildings founded. Click on a row to see the building details";
+					},
+					selectBuilding: function(name) {
+						console.log("selectBuilding")
+						this.searchString = name;
+						this.updateList = true;
+					},
+					seeDetails: function(building) {
+						this.selectedMeter = null;
+						$(".modal-footer").empty()
+						$('#details').modal('toggle');
+						this.timeout = setTimeout(() => {
+							this.detailBuilding = building;
+							console.log(building)
+							// this.detailBuilding.meters = this.detailBuilding.meters.map(elem => elem.label = elem.fuel + " - ID:" + elem.meter_id);
+							this.detailBuilding.options = this.detailBuilding.meters.map(elem => {
+								var option = {
+									label: elem.fuel + " - ID:" + elem.meter_id,
+									code: elem,
+								}
+								return option
+							});
+						}, 100);
+					},
+					closeDropdown: function() {
+						this.timeout = setTimeout(() => {
+							this.dropdown = false;
+						}, 100);
+					}
+				},
+				watch: {
+					searchString: function(newValue, oldValue) {
+						clearTimeout(this.timeout);
+						if (newValue.length >= 1) this.timeout = setTimeout(() => {
+							this.dropdown = true;
+							this.getBuildings(newValue);
+						}, 300);
+						else this.dropdown = false;
+					},
+					selectedMeter: function(newValue, oldValue) {
+						console.log(newValue.code)
+						this.$http.get('/api/meters/', {params: {meter_id: newValue.code.meter_id}})
+							.then((response) => {
+								console.log(response.data);
+
+								var consumption = response.data[0].readings.map(elem => elem.consumption);
+								var labels = response.data[0].readings.map(elem => elem.reading_date_time.replace('T','-').replace(':00Z',''));
+
+								console.log(consumption)
+								console.log(labels)
+
+								consumption = consumption.slice(0, 100)
+								labels = labels.slice(0, 100)
+								$(".modal-footer").empty()
+								$(".modal-footer").append('<canvas id="lineChart" width="400" height="400"></canvas>')
+								var ctx = $('#lineChart');
+
+								var myLineChart = new Chart(ctx, {
+									type: 'line',
+									data: {
+										labels: labels,
+										datasets: [{
+											label: 'Consumption',
+											data: consumption,
+											backgroundColor: [
+												'rgba(255, 99, 132, 0.2)',
+												'rgba(54, 162, 235, 0.2)',
+												'rgba(255, 206, 86, 0.2)',
+												'rgba(75, 192, 192, 0.2)',
+												'rgba(153, 102, 255, 0.2)',
+												'rgba(255, 159, 64, 0.2)'
+											],
+											borderColor: [
+												'rgba(255, 99, 132, 1)',
+												'rgba(54, 162, 235, 1)',
+												'rgba(255, 206, 86, 1)',
+												'rgba(75, 192, 192, 1)',
+												'rgba(153, 102, 255, 1)',
+												'rgba(255, 159, 64, 1)'
+											],
+											borderWidth: 1
+										}]
+									},
+									options: {
+										responsive: true,
+										maintainAspectRatio: false
+									}
+								});
+
+								console.log(char)
+
+								// chart.canvas.parentNode.style.height = '60vh';
+								chart.canvas.parentNode.style.width = '400px';
+
+								this.timeout = setTimeout(() => {
+									
+								}, 100);
+							})
+							.catch((err) => {
+								this.loading = false;
+							})
+					},
+				}
+			});
+		</script>
+	</body>
+</html>
