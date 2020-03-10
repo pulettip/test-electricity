@@ -7,7 +7,6 @@ Assuming fish is the default shell.
 
 Install [virtualfish](https://github.com/adambrenecki/virtualfish)
 
-```
 vf new backend
 pip install -r requirements.txt
 
@@ -23,3 +22,5 @@ For a shortage of time, I could not perform all the desirable content. This is a
 
 It can be tested here, although since is a TEST-APP it has only few meters readings lines. Only the first meters have information available:
 https://test-electricity-by-pablo.herokuapp.com/
+
+```
