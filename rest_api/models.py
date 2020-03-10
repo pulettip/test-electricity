@@ -22,7 +22,7 @@ class UnitType(models.IntegerChoices):
 class Meters(models.Model):
 	building=models.ForeignKey(Building, on_delete=models.CASCADE, related_name='meters')
 	meter_id=models.IntegerField()
-	fuel = models.CharField(max_length=1, choices=FuelType.choices)
+	fuel = models.CharField(max_length=20, choices=FuelType.choices)
 
 	class Meta:
 		unique_together = ('building', 'meter_id')
