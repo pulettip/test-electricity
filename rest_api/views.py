@@ -104,15 +104,15 @@ class MetersViewSet(viewsets.ModelViewSet):
 						format_error += 1
 
 					if building_id and meter_id:
-						try:
+						# try:
 							building = Building.objects.get(building_id=building_id)
 							obj, created = Meters.objects.get_or_create(building=building, meter_id=meter_id, fuel=fields[2])
 							if created:
 								new += 1
 							else:
 								existing += 1
-						except:
-							wrong_building += 1
+						# except:
+						# 	wrong_building += 1
 				i += 1
 			else:
 				format_error += 1
