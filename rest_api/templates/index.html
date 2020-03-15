@@ -11,43 +11,13 @@
 		<script src="https://kit.fontawesome.com/4e21707827.js" crossorigin="anonymous"></script>
 
 		<style type="text/css">
-			.building-row:nth-child(even) {
-				background: #CCC
-			}
-			.building-row:nth-child(odd) {
-				background: #FFF
-			}
-
-			.building-row {
-				cursor: pointer;
+			#starting {
+				max-width: 900px;
+				margin: 0 auto;
 			}
 
 			h1 {
 				text-align: center;
-			}
-
-			.loading {
-				width: 100%;
-				height: 100%;
-				position: fixed;
-				top: 0;
-				left: 0;
-				z-index: 100;
-				text-align: center;
-				background-color: rgba(0, 0, 0, 0.6);
-				color: #FFF;
-			}
-
-			.loading-text {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-			}
-
-			#starting {
-				max-width: 900px;
-				margin: 0 auto;
 			}
 
 			.searchRow {
@@ -55,8 +25,9 @@
 				margin: 15px auto;
 			}
 
-			.results {
-				margin: 15px 0;
+			.searchRow .btn-info {
+				max-height: 32px;
+				padding: 4px 12px;
 			}
 
 			@media only screen and (min-width: 500px) {
@@ -109,13 +80,8 @@
 				cursor: pointer;
 			}
 
-			.btn-detail {
-				margin: 10px 0;
-			}
-
-			.building-title {
-				font-weight: bold;
-				margin-bottom: 2em;
+			.results {
+				margin: 15px 0;
 			}
 
 			#details .modal-dialog {
@@ -144,9 +110,23 @@
 				margin: 1em 0;
 			}
 
+			@media only screen and (max-width: 499px) {
+				.card {
+					margin: 1em 2em;
+				}
+			}
+
 			.card-detail-text {
 				color: grey;
 				font-style: italic;
+			}
+
+			.select-field {
+				margin: 0.5em 0;
+			}
+
+			.vs__clear {
+				visibility: hidden;
 			}
 		</style>
 	</head>
@@ -195,9 +175,6 @@
  					</div>
 				</div>
 			</div>
-			<div class="loading column" v-if="loading===true">
-				<div class="loading-text">Loading&#8230;</div>
-			</div>
 
 			<!-- Modal -->
 			<div class="modal fade" id="details" tabindex="-1" role="dialog" aria-labelledby="detailsModal" aria-hidden="true">
@@ -211,10 +188,10 @@
 						</div>
 						<div class="container modal-body">
 							<div class="row align-items-center justify-content-center">
-								<div class="col-12 col-sm-7">
+								<div class="select-field col-12 col-sm-7">
 									<v-select v-model="selectedMeter" :options="detailBuilding.options"></v-select>
 								</div>
-								<div class="col-12 col-sm-5">
+								<div class="select-field col-12 col-sm-5">
 									<v-select v-model="view" :options="viewBy"></v-select>
 								</div>
 							</div>
@@ -227,13 +204,13 @@
 								<div v-else class="col">
 									<div v-show="daily" class="date-container row align-items-center justify-content-center">
 										<div class="col-auto">
-											<button v-on:click="dateBack" type="button" class="btn btn-secondary">
+											<button v-on:click="dateBack" type="button" class="btn btn-secondary" :disabled="date == startDate">
 												<i class="fas fa-arrow-left"></i>
 											</button>
 										</div>
 										<div class="col-auto">${date}</div>
 										<div class="col-auto">
-											<button v-on:click="dateForward" type="button" class="btn btn-secondary">
+											<button v-on:click="dateForward" type="button" class="btn btn-secondary" :disabled="date == lastDate">
 												<i class="fas fa-arrow-right"></i>
 											</button>
 										</div>
@@ -279,6 +256,8 @@
 						chartSelector: "#chartContainer",
 						dataUnavailable: false,
 						date: null,
+						lastDate: null,
+						startDate: null,
 						daily: false,
 						chartOptions: {
 							type: 'line',
@@ -364,7 +343,8 @@
 						}, 100);
 					},
 					getReadingsByDate: function() {
-						let readingsByDate = this.readingsArray.filter(elem => elem.date = this.date)[0].hours;
+						let readingsByDate = this.readingsArray.filter(elem => elem.date == this.date)[0].hours;
+						console.log(readingsByDate)
 						let chartOptions = Object.assign({}, this.chartOptions);
 						chartOptions.data.labels = readingsByDate.map(elem => elem.reading_date_time.substr(11,5));
 						chartOptions.data.datasets[0].data = readingsByDate.map(elem => elem.consumption);

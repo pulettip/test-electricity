@@ -34,3 +34,4 @@ class MetersReadings(models.Model):
 
 	class Meta:
 		unique_together = ('meter', 'reading_date_time')
+		ordering = ('meter', 'reading_date_time')
