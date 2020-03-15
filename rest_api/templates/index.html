@@ -8,6 +8,7 @@
 		<meta name="keywords" content="buildings">
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 		<link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+		<script src="https://kit.fontawesome.com/4e21707827.js" crossorigin="anonymous"></script>
 
 		<style type="text/css">
 			.building-row:nth-child(even) {
@@ -128,6 +129,25 @@
 			.table .col {
 				margin: 5px 0;
 			}
+
+			.date-container {
+				margin-bottom: 1em;
+			}
+
+			.card-img {
+				margin-top: 3vh;
+				font-size: 15vh;
+				color: #6c757d;
+			}
+
+			.card {
+				margin: 1em 0;
+			}
+
+			.card-detail-text {
+				color: grey;
+				font-style: italic;
+			}
 		</style>
 	</head>
 
@@ -155,18 +175,24 @@
 
 					<div class="results">${result}</div>
 
-					<div class="table">
-						<div class="row align-items-center justify-content-center">
-							<div class="col-3 col-sm-1">Id</div>
-							<div class="col">Name</div>
-							<div class="col">Meters</div>
+ 					<div class="row align-items-center justify-content-center">
+ 						<div v-on:click="seeDetails(building)" class="col-sm-6 col-lg-4" v-for="building in listBuildings">
+								<div class="card text-center">
+									<!-- <img class="card-img-top" src="..." alt="Card image cap"> -->
+									<div class="card-header">
+										${building.name}
+									</div>
+									<i class="card-img fas fa-building"></i>
+									<div class="card-body">
+										<div class="row card-detail-text">
+											<p class="col-6">ID: ${building.building_id}</p>
+											<p class="col-6">${building.meters.length} Meters</p>
+										</div>
+										<a href="#" class="btn btn-primary">Click for Details</a>
+									</div>
+								</div>
 						</div>
-						<div v-on:click="seeDetails(building)" class="row building-row align-items-center justify-content-center" v-for="building in listBuildings">
-							<div class="col-3 col-sm-1">${building.building_id}</div>
-							<div class="col">${building.name}</div>
-							<div class="col">${building.meters.length} Meters</div>
-						</div>
-					</div>
+ 					</div>
 				</div>
 			</div>
 			<div class="loading column" v-if="loading===true">
@@ -178,31 +204,43 @@
 				<div class="modal-dialog" role="document">
 					<div class="modal-content" v-if="detailBuilding">
 						<div class="modal-header">
-							<h5 class="modal-title" id="exampleModalLabel">Details of the Building</h5>
+							<h5 class="modal-title" id="exampleModalLabel">Details of the Building - ${detailBuilding.name} - ID: ${detailBuilding.building_id}</h5>
 							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 							<span aria-hidden="true">&times;</span>
 							</button>
 						</div>
 						<div class="container modal-body">
-							<div class="row">
-								<div class="col">
-									<div class="building-title">
-										${detailBuilding.name} (ID: ${detailBuilding.building_id})
-									</div>
-								</div>
-							</div>
-							<div class="row align-items-center justify-content-start">
-								<div class="col-2 col-sm-auto">
-									Select Meter
-								</div>
-								<div class="col">
+							<div class="row align-items-center justify-content-center">
+								<div class="col-12 col-sm-7">
 									<v-select v-model="selectedMeter" :options="detailBuilding.options"></v-select>
 								</div>
-								
+								<div class="col-12 col-sm-5">
+									<v-select v-model="view" :options="viewBy"></v-select>
+								</div>
 							</div>
 						</div>
 						<div class="modal-footer">
-							
+							<div class="col">
+								<div v-if="dataUnavailable">
+									Sorry, we don't have any information for the requested meter
+								</div>
+								<div v-else class="col">
+									<div v-show="daily" class="date-container row align-items-center justify-content-center">
+										<div class="col-auto">
+											<button v-on:click="dateBack" type="button" class="btn btn-secondary">
+												<i class="fas fa-arrow-left"></i>
+											</button>
+										</div>
+										<div class="col-auto">${date}</div>
+										<div class="col-auto">
+											<button v-on:click="dateForward" type="button" class="btn btn-secondary">
+												<i class="fas fa-arrow-right"></i>
+											</button>
+										</div>
+									</div>
+									<div id="chartContainer"></div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -220,7 +258,7 @@
 
 		<script>
 			Vue.component('v-select', VueSelect.VueSelect);
-			
+
 			new Vue({
 				el: '#starting',
 				delimiters: ['${','}'],
@@ -230,15 +268,45 @@
 						listBuildings: [],
 						detailBuilding: null,
 						selectedMeter: null,
+						view: 'Daily',
+						viewBy: ['Daily', 'Monthly'],
 						loading: false,
 						searchString: '',
 						timeout: null,
 						dropdown: false,
-						result: ''
+						noDataAvailable: false,
+						result: '',
+						chartSelector: "#chartContainer",
+						dataUnavailable: false,
+						date: null,
+						daily: false,
+						chartOptions: {
+							type: 'line',
+							data: {
+								datasets: [{
+									label: 'Consumption',
+									backgroundColor: 'rgba(255, 99, 132, 0.4)',
+									borderColor: 'rgba(255, 99, 132, 1)',
+									borderWidth: 1
+								}]
+							},
+							options: {
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+								            yAxes: [{
+								                ticks: {
+								                    beginAtZero: true,
+								                }
+								            }]
+								        }
+							}
+						}
 					}
 				},
 				mounted: function() {
 					this.getBuildings();
+					this.search();
 				},
 				methods: {
 					getBuildings: function(query=false) {
@@ -259,7 +327,7 @@
 					keyCheck: function(event) {
 						if (event.key == "Enter") this.search();
 					},
-					search: function(event) {
+					search: function() {
 						this.listBuildings = this.buildings;
 						this.dropdown = false;
 						if (this.searchString.length < 1) {
@@ -276,24 +344,72 @@
 					},
 					seeDetails: function(building) {
 						this.selectedMeter = null;
-						$(".modal-footer").empty()
+						$(this.chartSelector).empty()
 						$('#details').modal('toggle');
 						this.timeout = setTimeout(() => {
 							this.detailBuilding = building;
 							this.detailBuilding.options = this.detailBuilding.meters.map(elem => {
-								var option = {
+								let option = {
 									label: elem.fuel + " - ID:" + elem.meter_id,
 									code: elem,
 								}
 								return option
 							});
+							this.selectedMeter = this.detailBuilding.options[0]
 						}, 100);
 					},
 					closeDropdown: function() {
 						this.timeout = setTimeout(() => {
 							this.dropdown = false;
 						}, 100);
-					}
+					},
+					getReadingsByDate: function() {
+						let readingsByDate = this.readingsArray.filter(elem => elem.date = this.date)[0].hours;
+						let chartOptions = Object.assign({}, this.chartOptions);
+						chartOptions.data.labels = readingsByDate.map(elem => elem.reading_date_time.substr(11,5));
+						chartOptions.data.datasets[0].data = readingsByDate.map(elem => elem.consumption);
+						chartOptions.options.scales.yAxes[0].ticks.max = this.maxConsumption;
+						chartOptions.options.scales.yAxes[0].ticks.stepSize = this.separator;
+						this.daily = true;
+						this.renderChart(chartOptions);
+					},
+					getReadingsByMonth: function() {
+						let chartOptions = Object.assign({}, this.chartOptions);
+						this.monthlyLabels = this.monthlyLabels || this.readingsArray.map(elem => elem.date);
+						this.monthlyData = this.monthlyData || this.readingsArray.map(elem => elem.total);
+						chartOptions.data.labels = this.monthlyLabels;
+						chartOptions.data.datasets[0].data = this.monthlyData;
+						chartOptions.options.scales.yAxes[0].ticks.max = undefined;
+						chartOptions.options.scales.yAxes[0].ticks.stepSize = undefined;
+						this.daily = false;
+						this.renderChart(chartOptions);
+					},
+					renderChart: function(chartOptions) {
+						$(this.chartSelector).empty()
+						$(this.chartSelector).append('<canvas id="lineChart" width="400" height="400"></canvas>')
+						let ctx = $('#lineChart');
+						let myLineChart = new Chart(ctx, chartOptions);
+					},
+					dateBack: function() {
+						this.timeout = setTimeout(() => {
+							if (this.startDate != this.date) {
+								let date = new Date(this.date);
+								date.setDate(date.getDate() - 1);
+								this.date = date.toISOString().substr(0,10);
+								this.getReadingsByDate();
+							}
+						}, 100);
+					},
+					dateForward: function() {
+						this.timeout = setTimeout(() => {
+							if (this.lastDate != this.date) {
+								let date = new Date(this.date);
+								date.setDate(date.getDate() + 1);
+								this.date = date.toISOString().substr(0,10);
+								this.getReadingsByDate();
+							}
+						}, 100);
+					},
 				},
 				watch: {
 					searchString: function(newValue, oldValue) {
@@ -304,49 +420,54 @@
 						}, 300);
 						else this.dropdown = false;
 					},
+					view: function(newValue, oldValue) {
+						if (newValue == "Daily") this.getReadingsByDate();
+						else this.getReadingsByMonth();
+					},
 					selectedMeter: function(newValue, oldValue) {
-						this.$http.get('/api/meters/', {params: {meter_id: newValue.code.meter_id}})
+						if (newValue) 
+							this.monthlyLabels = null;
+							this.monthlyData = null;
+							this.$http.get('/api/meters/', {params: {meter_id: newValue.code.meter_id}})
 							.then((response) => {
-								var consumption = response.data[0].readings.map(elem => elem.consumption);
-								var labels = response.data[0].readings.map(elem => elem.reading_date_time.replace('T','-').replace(':00Z',''));
+								let readings = response.data[0].readings
+								this.dataUnavailable = readings.length == 0;
 
-								consumption = consumption.slice(0, 100)
-								labels = labels.slice(0, 100)
-								$(".modal-footer").empty()
-								$(".modal-footer").append('<canvas id="lineChart" width="400" height="400"></canvas>')
-								var ctx = $('#lineChart');
+								if (this.dataUnavailable) $(this.chartSelector).empty();
+								else {
+									this.startDate = readings.slice(0, 1)[0].reading_date_time.substr(0,10);
+									this.lastDate = readings.slice(-2, -1)[0].reading_date_time.substr(0,10);
+									this.date = this.startDate;
 
-								var myLineChart = new Chart(ctx, {
-									type: 'line',
-									data: {
-										labels: labels,
-										datasets: [{
-											label: 'Consumption',
-											data: consumption,
-											backgroundColor: [
-												'rgba(255, 99, 132, 0.2)',
-												'rgba(54, 162, 235, 0.2)',
-												'rgba(255, 206, 86, 0.2)',
-												'rgba(75, 192, 192, 0.2)',
-												'rgba(153, 102, 255, 0.2)',
-												'rgba(255, 159, 64, 0.2)'
-											],
-											borderColor: [
-												'rgba(255, 99, 132, 1)',
-												'rgba(54, 162, 235, 1)',
-												'rgba(255, 206, 86, 1)',
-												'rgba(75, 192, 192, 1)',
-												'rgba(153, 102, 255, 1)',
-												'rgba(255, 159, 64, 1)'
-											],
-											borderWidth: 1
-										}]
-									},
-									options: {
-										responsive: true,
-										maintainAspectRatio: false
+									let start = new Date(this.date);
+									let end = new Date(this.lastDate);
+									let days = end.getDate() - start.getDate() + 1;
+									let tmpDate, tmpArray;
+									this.readingsArray = [];
+									for (var i = 0; i < days; i++) {;
+										tmpDate = start.toISOString().substr(0,10);
+										tmpArray = readings.filter(elem => elem.reading_date_time.includes(tmpDate))
+										this.readingsArray.push({
+											hours: tmpArray,
+											total: parseFloat(tmpArray.reduce((total, elem) => total + elem.consumption, 0).toFixed(2)),
+											date: tmpDate
+										})
+										start.setDate(start.getDate() + 1);
 									}
-								});
+
+									this.maxConsumption = readings.reduce((maxValue, elem) => Math.max(maxValue, elem.consumption), 0);
+									if (this.maxConsumption <= 200) this.separator = 20;
+									else if (this.maxConsumption <= 500) this.separator = 50;
+									else if (this.maxConsumption <= 1000) this.separator = 100;
+									else this.separator = 200;
+									this.maxConsumption = Math.ceil(this.maxConsumption / this.separator) * this.separator;
+
+									setTimeout(() => {
+										if (this.view == "Daily") this.getReadingsByDate();
+										else this.getReadingsByMonth();
+									}, 100);
+								}
+
 							})
 							.catch((err) => {
 								this.loading = false;
